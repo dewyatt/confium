@@ -1,7 +1,6 @@
 use crate::error::Error;
 
 use libc::c_char;
-use std::ffi::CStr;
 
 pub struct Hash {}
 

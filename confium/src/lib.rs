@@ -13,7 +13,6 @@ pub mod hash;
 pub mod stringoptions;
 
 use libc::c_char;
-use std::ffi::CStr;
 use std::rc::Rc;
 
 use libloading::Library;
@@ -71,7 +70,7 @@ pub extern "C" fn cfm_load_plugin(ffi: *mut FFI, c_path: *const c_char) -> u32 {
     if ffi.is_null() || c_path.is_null() {
         return u32::from(Error::NullPointer);
     }
-    let path = cstring!(c_path);
+    let path = unsafe { cstring!(c_path) };
     let lib = Rc::new(match Library::new(path) {
         Ok(l) => l,
         Err(e) => {
