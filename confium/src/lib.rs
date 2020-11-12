@@ -51,7 +51,7 @@ pub extern "C" fn cfm_create(ffi: *mut *mut FFI) -> u32 {
         let decorator = slog_term::TermDecorator::new().build();
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let drain = slog_async::Async::new(drain).build().fuse();
-        let log = slog::Logger::root(drain, o!("version" => "5"));
+        let log = slog::Logger::root(drain, o!());
         *ffi = Box::into_raw(Box::new(FFI::new(log)));
     }
     0
