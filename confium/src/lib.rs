@@ -1,4 +1,3 @@
-extern crate libc;
 extern crate libloading;
 #[macro_use]
 pub extern crate slog;
@@ -12,7 +11,7 @@ pub mod error;
 pub mod hash;
 pub mod stringoptions;
 
-use libc::c_char;
+use std::os::raw::c_char;
 use std::rc::Rc;
 
 use libloading::Library;

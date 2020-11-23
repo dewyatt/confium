@@ -1,5 +1,5 @@
-use libc::c_char;
 use std::collections::HashMap;
+use std::os::raw::c_char;
 
 use crate::error::Error;
 
