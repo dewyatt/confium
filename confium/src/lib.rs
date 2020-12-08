@@ -11,6 +11,7 @@ pub mod error;
 pub mod hash;
 pub mod stringoptions;
 
+use std::ffi::CString;
 use std::os::raw::c_char;
 use std::rc::Rc;
 
@@ -88,3 +89,59 @@ pub extern "C" fn cfm_load_plugin(ffi: *mut FFI, c_path: *const c_char) -> u32 {
     }
     0
 }
+
+#[no_mangle]
+pub extern "C" fn cfm_str_free(s: *mut c_char) {
+    if s.is_null() {
+        return;
+    }
+    unsafe {
+        CString::from_raw(s);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn cfm_err_get_msg(e: *mut Error, msg: *mut *mut c_char) {
+    if e.is_null() || msg.is_null() {
+        return;
+    }
+    unsafe {
+        *msg = std::ptr::null_mut();
+        match CString::new((*e).to_string()) {
+            Ok(s) => *msg = s.into_raw(),
+            Err(e) => {
+                eprintln!("{:?}", e);
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn cfm_err_get_code(e: *mut Error, code: *mut u32) {
+    if e.is_null() || code.is_null() {
+        return;
+    }
+    unsafe {
+        *code = u32::from(&*e);
+    }
+}
+
+/*
+#[no_mangle]
+pub extern "C" fn cfm_err_get_source(e: *mut Error, src: *mut Error) {
+    if e.is_null() || src.is_null() {
+        return;
+    }
+    unsafe {
+        *code = u32::from(&*e);
+    }
+}
+*/
+
+/*
+void cfm_err_get_msg(cfm_err_t* err, char *msg);
+void cfm_err_get_code(cfm_err_t* err, uint32_t *code);
+void cfm_err_get_source(cfm_err_t *err, cfm_err_t *src);
+void cfm_err_get_backtrace(cfm_err_t *err, char *backtrace);
+
+*/

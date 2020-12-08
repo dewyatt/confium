@@ -66,6 +66,13 @@ impl From<Error> for u32 {
     }
 }
 
+impl From<&Error> for u32 {
+    #[inline]
+    fn from(err: &Error) -> u32 {
+        err.0 as u32
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
