@@ -18,8 +18,10 @@ use std::rc::Rc;
 use libloading::Library;
 use slog::Drain;
 
-use error::Error;
+use error::{Error, ErrorKind};
 use hash::Hash;
+
+type BoxError = Box<dyn std::error::Error>;
 
 type HashCreateFn = extern "C" fn(ffi: *mut FFI, *const c_char, *mut *mut Hash) -> u32;
 type HashDestroyFn = extern "C" fn(ffi: *mut FFI, *mut Hash) -> u32;
@@ -68,7 +70,11 @@ pub extern "C" fn cfm_destroy(ffi: *mut FFI) -> u32 {
 #[no_mangle]
 pub extern "C" fn cfm_load_plugin(ffi: *mut FFI, c_path: *const c_char) -> u32 {
     if ffi.is_null() || c_path.is_null() {
-        return u32::from(Error::NullPointer);
+        return Error {
+            kind: ErrorKind::NullPointer {},
+            source: None,
+        }
+        .into();
     }
     let path = unsafe { cstring!(c_path) };
     let lib = Rc::new(match Library::new(path) {
@@ -77,7 +83,11 @@ pub extern "C" fn cfm_load_plugin(ffi: *mut FFI, c_path: *const c_char) -> u32 {
             unsafe {
                 error!((*ffi).logger, "Failed to load plugin: {}", e);
             }
-            return u32::from(Error::PluginLoadError);
+            return Error {
+                kind: ErrorKind::PluginLoadError {},
+                source: None,
+            }
+            .into();
         }
     });
     unsafe {
@@ -101,7 +111,7 @@ pub extern "C" fn cfm_str_free(s: *mut c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn cfm_err_get_msg(e: *mut Error, msg: *mut *mut c_char) {
+pub extern "C" fn cfm_err_get_msg(e: *const Error, msg: *mut *mut c_char) {
     if e.is_null() || msg.is_null() {
         return;
     }
@@ -117,26 +127,30 @@ pub extern "C" fn cfm_err_get_msg(e: *mut Error, msg: *mut *mut c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn cfm_err_get_code(e: *mut Error, code: *mut u32) {
+pub extern "C" fn cfm_err_get_code(e: *const Error, code: *mut u32) {
     if e.is_null() || code.is_null() {
         return;
     }
     unsafe {
-        *code = u32::from(&*e);
+        *code = (&*e).into();
     }
 }
 
-/*
 #[no_mangle]
-pub extern "C" fn cfm_err_get_source(e: *mut Error, src: *mut Error) {
+pub extern "C" fn cfm_err_get_source(e: *const Error, src: *mut *const Error) {
     if e.is_null() || src.is_null() {
         return;
     }
     unsafe {
-        *code = u32::from(&*e);
+        /*
+        if let Some(&source) = (*e).source {
+            *src = *Box::into_raw(source); // TODO
+        } else {
+            *src = std::ptr::null_mut();
+        }
+        */
     }
 }
-*/
 
 /*
 void cfm_err_get_msg(cfm_err_t* err, char *msg);

@@ -1,75 +1,112 @@
 use std::convert::From;
 
-#[derive(Debug, PartialEq)]
-pub struct Error(ErrorCode);
+pub type Result<T> = std::result::Result<T, Error>;
 
-impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        self.0.as_str()
+macro_rules! error_codes {
+    (
+        $(
+            ($code:literal, $codename:ident, $kindname:ident, $($errkind:tt)+);
+        )+
+    ) => {
+        #[allow(non_camel_case_types)]
+        #[repr(u32)]
+        pub enum ErrorCode {
+        $(
+            $codename = $code,
+        )+
+        }
+
+        #[derive(Debug)]
+        pub enum ErrorKind {
+        $(
+            $kindname $($errkind)+,
+        )+
+        }
+
+        impl ErrorKind {
+            fn code(&self) -> ErrorCode {
+                match self {
+                    $(
+                        ErrorKind::$kindname { .. } => ErrorCode::$codename,
+                    )+
+                }
+            }
+        }
+    };
+}
+
+error_codes! {
+    (1, UNKNOWN, Unknown, {});
+    (2, NULL_POINTER, NullPointer, {});
+    (3, IO_ERROR, Io,
+        {
+            // TODO: should it be like this?? or should top-level source be dyn
+            source: ::std::io::Error,
+            path: Option<String>,
+        }
+    );
+    (4, INVALID_HEX_DIGIT, InvalidHexDigit, (char));
+    (5, INVALID_UTF8, InvalidUTF8, {});
+    (6, INVALID_FORMAT, InvalidFormat, {});
+    (7, OVERFLOW, Overflow, {});
+    (8, PLUGIN_LOAD_ERROR, PluginLoadError, {});
+}
+
+#[derive(thiserror::Error, Debug)]
+pub struct Error {
+    pub kind: ErrorKind,
+    pub source: Option<Box<dyn std::error::Error>>,
+}
+
+impl Error {
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+
+    pub fn code(&self) -> ErrorCode {
+        self.kind.code()
     }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self.0)
+        write!(f, "{}", self.kind)
     }
 }
 
-macro_rules! error_codes {
-    (
-        $(
-            $(#[$docs:meta])*
-            ($code:expr, $codename:ident, $errname:ident, $desc:expr);
-        )+
-    ) => {
-        #[allow(non_camel_case_types)]
-        #[repr(u32)]
-        #[derive(Debug, PartialEq, Copy, Clone)]
-        enum ErrorCode {
-        $(
-            $(#[$docs])*
-            $codename = $code,
-        )+
-        }
-
-        impl ErrorCode {
-            fn as_str(&self) -> &str {
-                match *self {
-                $(
-                    ErrorCode::$codename => $desc,
-                )+
+impl std::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ErrorKind::Unknown {} => write!(f, "Unknown error")?,
+            ErrorKind::InvalidUTF8 {} => write!(f, "Invalid UTF-8")?,
+            ErrorKind::NullPointer {} => write!(f, "Null pointer")?,
+            ErrorKind::Io { source, path } => {
+                if let Some(path) = path {
+                    write!(f, "IO error: '{}': {}", path, source)?
+                } else {
+                    write!(f, "IO error: {}", source)?
                 }
             }
+            ErrorKind::InvalidFormat {} => write!(f, "Invalid format")?,
+            ErrorKind::InvalidHexDigit(c) => write!(f, "Invalid hex digit: '{}'", c)?,
+            ErrorKind::Overflow {} => write!(f, "Overfow")?,
+            ErrorKind::PluginLoadError {} => write!(f, "Plugin load error")?,
         }
-
-        #[allow(non_upper_case_globals)]
-        impl Error {
-            $(
-                $(#[$docs])*
-                pub const $errname: Error = Error(ErrorCode::$codename);
-            )+
-        }
+        Ok(())
     }
-}
-
-error_codes! {
-    (1, UNKNOWN, Unknown, "Unknown error");
-    (2, NULL_POINTER, NullPointer, "NULL pointer");
-    (3, INVALID_UTF8, InvalidUTF8, "Invalid UTF-8");
-    (4, PLUGIN_LOAD_ERROR, PluginLoadError, "Failed to load plugin");
 }
 
 impl From<Error> for u32 {
     #[inline]
     fn from(err: Error) -> u32 {
-        err.0 as u32
+        err.code() as u32
     }
 }
 
 impl From<&Error> for u32 {
     #[inline]
     fn from(err: &Error) -> u32 {
-        err.0 as u32
+        err.code() as u32
     }
 }
 
@@ -77,10 +114,11 @@ impl From<&Error> for u32 {
 mod tests {
     use super::*;
 
+    /*
     fn test(i: i8) -> Result<(), Error> {
         match i {
             0 => Ok(()),
-            1 => Err(Error::NullPointer),
+            1 => Err(ErrorKind::NullPointer),
             _ => Err(Error::Unknown),
         }
     }
@@ -107,4 +145,5 @@ mod tests {
         assert_eq!(test(100).err().unwrap().0 as u32, 1);
         assert_eq!(u32::from(test(100).err().unwrap()), 1);
     }
+    */
 }
