@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 pub struct Hash {}
 
 impl Hash {
-    fn new() -> Hash {
+    pub fn new() -> Hash {
         Hash {}
     }
 }
@@ -13,19 +13,3 @@ impl Drop for Hash {
 }
 
 pub type HashCreateFn = extern "C" fn(*const c_char, *mut *mut Hash) -> u32;
-
-#[no_mangle]
-pub extern "C" fn cfm_hash_create(_c_name: *const c_char, obj: *mut *mut Hash) -> u32 {
-    unsafe {
-        *obj = Box::into_raw(Box::new(Hash::new()));
-    }
-    0
-}
-
-#[no_mangle]
-pub extern "C" fn cfm_hash_destroy(obj: *mut Hash) -> u32 {
-    unsafe {
-        Box::from_raw(obj);
-    }
-    0
-}

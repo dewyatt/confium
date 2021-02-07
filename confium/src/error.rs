@@ -36,11 +36,10 @@ macro_rules! error_codes {
 }
 
 error_codes! {
-    (1, UNKNOWN, Unknown, {});
+    (1, UNKNOWN, Unknown, {} );
     (2, NULL_POINTER, NullPointer, {});
     (3, IO_ERROR, Io,
         {
-            // TODO: should it be like this?? or should top-level source be dyn
             source: ::std::io::Error,
             path: Option<String>,
         }
@@ -50,13 +49,37 @@ error_codes! {
     (6, INVALID_FORMAT, InvalidFormat, {});
     (7, OVERFLOW, Overflow, {});
     (8, PLUGIN_LOAD_ERROR, PluginLoadError, {});
+    (9, INITIALIZATION_FAILURE, InitializationFailure, {});
+    (10, INVALID_CONFIG, InvalidConfig, {linenum: Option<usize>});
+    (11, EXPECTED_TOKEN, ExpectedToken, (char));
 }
 
 #[derive(thiserror::Error, Debug)]
 pub struct Error {
     pub kind: ErrorKind,
+    #[source]
     pub source: Option<Box<dyn std::error::Error>>,
+    #[backtrace]
+    pub backtrace: Option<std::backtrace::Backtrace>,
 }
+
+impl Default for Error {
+    fn default() -> Self {
+        Error {
+            kind: ErrorKind::Unknown {},
+            source: None,
+            backtrace: None,
+        }
+    }
+}
+
+/*
+impl Drop for Error {
+    fn drop(&mut self) {
+        //println!("Dropping Error {:p}", self);
+    }
+}
+*/
 
 impl Error {
     pub fn kind(&self) -> &ErrorKind {
@@ -91,6 +114,12 @@ impl std::fmt::Display for ErrorKind {
             ErrorKind::InvalidHexDigit(c) => write!(f, "Invalid hex digit: '{}'", c)?,
             ErrorKind::Overflow {} => write!(f, "Overfow")?,
             ErrorKind::PluginLoadError {} => write!(f, "Plugin load error")?,
+            ErrorKind::ExpectedToken(c) => write!(f, "Expected '{}'", c)?,
+            ErrorKind::InitializationFailure {} => write!(f, "Initialization failure")?,
+            ErrorKind::InvalidConfig { linenum } => match linenum {
+                Some(linenum) => write!(f, "Invalid config (line {})", linenum)?,
+                None => write!(f, "Invalid config")?,
+            },
         }
         Ok(())
     }
@@ -112,7 +141,7 @@ impl From<&Error> for u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    //use super::*;
 
     /*
     fn test(i: i8) -> Result<(), Error> {

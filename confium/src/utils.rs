@@ -5,6 +5,7 @@ macro_rules! cstring {
             return Error {
                 kind: $crate::error::ErrorKind::NullPointer {},
                 source: None,
+                backtrace: None,
             }
             .into();
         }
@@ -14,6 +15,7 @@ macro_rules! cstring {
                 return Error {
                     kind: $crate::error::ErrorKind::InvalidUTF8 {},
                     source: None,
+                    backtrace: None,
                 }
                 .into();
             }
